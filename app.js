@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getDatabase, ref, onValue, set
+  getDatabase, ref, onValue, set, update, child
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
 /* =========================================================
@@ -115,9 +115,19 @@ let logStudent = GIRLS[0];
 let logDate = ALL_DATES[0];
 let scoreboardDate = TODAY_IS_TRAINING_DAY ? TODAY_KEY : ALL_DATES[0];
 let editing = false;
+let editingTimeoutId = null;
+/* blur 이벤트를 놓치는 경우를 대비한 안전장치 — 20초 후 자동으로 편집 잠금 해제 */
+function setEditing(val){
+  editing = val;
+  if (editingTimeoutId){ clearTimeout(editingTimeoutId); editingTimeoutId = null; }
+  if (val){
+    editingTimeoutId = setTimeout(()=>{ editing = false; }, 20000);
+  }
+}
 let saving = false;
 let firebaseErrorMsg = "";
 let deferredInstallPrompt = null;
+let showInstallHint = false;
 
 const root = document.getElementById("kbRoot");
 
@@ -163,7 +173,10 @@ function initFirebase(){
   }
 }
 
-async function persist(){
+/* 값 하나가 바뀔 때 전체 데이터를 통째로 다시 쓰지 않고,
+   바뀐 경로(path)만 정확히 수정합니다 — 여러 학생이 동시에 저장해도
+   서로 다른 항목이면 절대 서로를 덮어쓰지 않습니다. */
+async function persistPath(path, value){
   if (!dataRef){
     firebaseErrorMsg = "Firebase Realtime Database에 연결되지 않아 저장되지 않았습니다. 페이지를 새로고침하거나 관리자(코치)에게 알려주세요.";
     render();
@@ -171,7 +184,27 @@ async function persist(){
   }
   saving = true; updateStatus();
   try{
-    await set(dataRef, data);
+    await set(child(dataRef, path), value);
+    firebaseErrorMsg = "";
+  }catch(e){
+    console.error("저장 실패", e);
+    firebaseErrorMsg = "저장에 실패했습니다: " + e.message;
+    render();
+  }finally{
+    saving = false; updateStatus();
+  }
+}
+
+/* 여러 경로를 한 번에 원자적으로 수정할 때 사용 (예: 팀 전체 초기화) */
+async function persistMultiPath(relativeUpdates){
+  if (!dataRef){
+    firebaseErrorMsg = "Firebase Realtime Database에 연결되지 않아 저장되지 않았습니다. 페이지를 새로고침하거나 관리자(코치)에게 알려주세요.";
+    render();
+    return;
+  }
+  saving = true; updateStatus();
+  try{
+    await update(dataRef, relativeUpdates);
     firebaseErrorMsg = "";
   }catch(e){
     console.error("저장 실패", e);
@@ -184,8 +217,7 @@ async function persist(){
 
 function patch(section, key, value){
   data[section][key] = value;
-  data.updatedAt = Date.now();
-  persist();
+  persistPath(`${section}/${key}`, value);
 }
 
 function patchSelfLog(student, date, field, value){
@@ -193,21 +225,23 @@ function patchSelfLog(student, date, field, value){
   const cur = data.selflog[k] || {goal:"",good:"",improve:"",next:"",coachCheck:false,coachFeedback:""};
   cur[field] = value;
   data.selflog[k] = cur;
-  data.updatedAt = Date.now();
-  persist();
+  persistPath(`selflog/${k}/${field}`, value);
 }
 
 function addScoreEntry(date, label, pink, gray, blue){
   data.scoreboard = data.scoreboard || {};
   const id = K(date, String(Date.now()));
-  data.scoreboard[id] = { date, label: label || "게임", pink: Number(pink)||0, gray: Number(gray)||0, blue: Number(blue)||0 };
-  data.updatedAt = Date.now();
-  persist();
+  const entry = {
+    date, label: label || "게임",
+    pink: Number(pink)||0, gray: Number(gray)||0, blue: Number(blue)||0,
+    teams: {...(data.teams||{})}
+  };
+  data.scoreboard[id] = entry;
+  persistPath(`scoreboard/${id}`, entry);
 }
 function deleteScoreEntry(id){
   if (data.scoreboard) delete data.scoreboard[id];
-  data.updatedAt = Date.now();
-  persist();
+  persistPath(`scoreboard/${id}`, null);
 }
 
 /* ---------------- render helpers ---------------- */
@@ -228,6 +262,21 @@ function canEdit(name){
   if (appMode === "coach") return true;
   if (appMode === "student") return name === studentName;
   return false;
+}
+
+/* 아이폰(Safari)이나 화웨이/샤오미 등 일부 안드로이드 브라우저는
+   자동 설치 팝업(beforeinstallprompt)을 지원하지 않아, 기기별 수동 설치 안내를 보여줌 */
+function getInstallHint(){
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIOS){
+    return "iOS(아이폰·아이패드)는 자동 설치 팝업이 없어요. Safari 화면 하단(또는 상단) 공유 버튼(⬆️ 네모 안 화살표)을 누른 뒤 '홈 화면에 추가'를 선택해주세요. 크롬으로 열었다면 우측 상단 ⋯ 메뉴에서 '공유' → '홈 화면에 추가'를 찾아주세요.";
+  }
+  const isAndroid = /Android/.test(ua);
+  if (isAndroid){
+    return "브라우저 오른쪽 위 메뉴(⋮ 또는 ≡)를 열고 '홈 화면에 추가' 또는 '앱 설치'를 찾아 눌러주세요. 화웨이·샤오미·오포 등 일부 기기는 '바로가기 추가'라는 문구로 표시될 수 있어요.";
+  }
+  return "브라우저 메뉴에서 '홈 화면에 추가' 또는 '앱 설치' 항목을 찾아 눌러주세요.";
 }
 
 /* ---------------- coaching-point helper icon ---------------- */
@@ -315,23 +364,28 @@ function render(){
         <div class="kb-status" id="kbStatusWrap">
           ${badge}
           <span id="kbStatus">✅ 저장됨 (실시간 동기화)</span>
-          ${deferredInstallPrompt ? `<button class="kb-btn-refresh" id="kbInstallBtn">📲 앱 설치</button>` : ""}
+          <button class="kb-btn-refresh" id="kbInstallBtn">📲 앱 설치</button>
           <button class="kb-btn-exit" id="kbExitBtn">⏻ 나가기</button>
         </div>
       </div>
     </div>
     ${firebaseErrorMsg ? `<div style="background:#fee2e2;color:#991b1b;font-size:12.5px;padding:9px 16px;border-bottom:1px solid #fecaca;">⚠️ ${esc(firebaseErrorMsg)}</div>` : ""}
+    ${showInstallHint ? `<div style="background:#eef4fb;color:#1e4a72;font-size:12.5px;padding:9px 16px;border-bottom:1px solid #cfe0f2;">📲 ${esc(getInstallHint())}</div>` : ""}
     <div class="kb-tabs" id="kbTabs"></div>
     <div class="kb-content" id="kbContent"></div>
   `;
   const installBtn = document.getElementById("kbInstallBtn");
   if (installBtn){
     installBtn.onclick = async () => {
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
-      render();
+      if (deferredInstallPrompt){
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        render();
+      } else {
+        showInstallHint = !showInstallHint;
+        render();
+      }
     };
   }
   document.getElementById("kbExitBtn").onclick = () => {
@@ -355,7 +409,8 @@ function renderGate(){
         <div class="t">🙋 학생 모드로 입장</div>
         <div class="d">본인 이름 선택 · 본인 항목 체크 및 자율 기록지 작성</div>
       </button>
-      ${deferredInstallPrompt ? `<button class="kb-gate-btn" id="gateInstallBtn" style="margin-top:6px;background:#2e7d52;">📲 홈 화면에 앱 설치</button>` : ""}
+      <button class="kb-gate-btn" id="gateInstallBtn" style="margin-top:6px;background:#2e7d52;">📲 홈 화면에 앱 설치</button>
+      ${showInstallHint ? `<div class="kb-tip-box" style="margin-top:10px;">${esc(getInstallHint())}</div>` : ""}
     `;
   } else if (gateView === "coachLogin"){
     inner = `
@@ -395,11 +450,15 @@ function renderGate(){
     document.getElementById("gateStudentBtn").onclick = ()=>{ gateView="studentSelect"; render(); };
     const instBtn = document.getElementById("gateInstallBtn");
     if (instBtn) instBtn.onclick = async ()=>{
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
-      render();
+      if (deferredInstallPrompt){
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        render();
+      } else {
+        showInstallHint = !showInstallHint;
+        render();
+      }
     };
   } else if (gateView === "coachLogin"){
     const pwInput = document.getElementById("coachPwInput");
@@ -441,9 +500,6 @@ function renderTabs(){
   ];
   if (appMode === "coach"){
     TABS.push({id:"curriculum", label:"수업 커리큘럼"});
-  }
-  if (appMode === "student" && !GIRLS.includes(studentName)){
-    TABS = TABS.filter(t=>t.id!=="selflog" && t.id!=="sliding");
   }
   const wrap = document.getElementById("kbTabs");
   wrap.innerHTML = TABS.map(t =>
@@ -511,9 +567,9 @@ function renderTeams(c){
   if (resetBtn) resetBtn.onclick = ()=>{
     if (!confirm("모든 학생을 미배정으로 초기화할까요?")) return;
     data.teams = data.teams || {};
-    ALL_STUDENTS.forEach(n => data.teams[n] = "");
-    data.updatedAt = Date.now();
-    persist();
+    const updates = {};
+    ALL_STUDENTS.forEach(n => { data.teams[n] = ""; updates[`teams/${n}`] = ""; });
+    persistMultiPath(updates);
     renderContent();
   };
 }
@@ -530,15 +586,18 @@ function renderScoreboard(c){
 
   const entryCards = entries.map(([id, e]) => {
     const max = Math.max(e.pink, e.gray, e.blue);
+    const teamsSnapshot = e.teams || data.teams || {};
+    const rosterFor = (colorKey) => ALL_STUDENTS.filter(n => teamsSnapshot[n] === colorKey);
     return `<div class="kb-today-card">
       <div class="kb-today-drill-row" style="margin-bottom:10px;">
         <span class="kb-today-drill-label">${esc(e.label)}</span>
         ${appMode==="coach" ? `<button type="button" class="kb-btn-exit" style="background:#fee2e2;color:#991b1b;" data-del-score="${esc(id)}">삭제</button>` : ""}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        ${TEAM_COLORS.map(tc => `<div style="flex:1;min-width:80px;text-align:center;padding:10px;border-radius:10px;background:${tc.bg};border:1px solid ${tc.border};${e[tc.key]===max && max>0 ? 'box-shadow:0 0 0 2px '+tc.text+' inset;' : ''}">
+        ${TEAM_COLORS.map(tc => `<div style="flex:1;min-width:100px;text-align:center;padding:10px;border-radius:10px;background:${tc.bg};border:1px solid ${tc.border};${e[tc.key]===max && max>0 ? 'box-shadow:0 0 0 2px '+tc.text+' inset;' : ''}">
           <div style="font-size:12px;font-weight:700;color:${tc.text};">${tc.label}</div>
           <div style="font-size:22px;font-weight:800;color:${tc.text};margin-top:4px;">${e[tc.key]}</div>
+          <div style="font-size:10.5px;color:${tc.text};margin-top:8px;line-height:1.5;opacity:0.9;">${rosterFor(tc.key).map(n=>esc(n)).join(", ") || "배정 없음"}</div>
         </div>`).join("")}
       </div>
     </div>`;
@@ -547,6 +606,7 @@ function renderScoreboard(c){
   const addForm = appMode!=="coach" ? "" : `
     <div class="kb-today-card">
       <div class="kb-today-date">새 게임 기록 추가</div>
+      <div class="kb-hint" style="margin-bottom:10px;">저장 시점의 「팀 편성」 탭 배정이 그대로 이 게임 기록에 남습니다.</div>
       <input type="text" id="scoreLabelInput" class="kb-input-lg" style="margin-top:0;" placeholder="게임명 (예: 2차시 미니게임)">
       <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
         ${TEAM_COLORS.map(tc => `<div style="flex:1;min-width:80px;">
@@ -821,15 +881,15 @@ function renderSliding(c){
     </div>` +
     switchHtml("slSwitch", phaseSliding, ["1차 (7/15~7/24)","2차 (8/4~8/14)"]) +
     `<div class="kb-hint-row">
-      <span class="kb-hint" style="margin-bottom:0;">형식: 성공/시도 (예: 6/10) · 대상: 수비 담당 여학생 8명</span>
+      <span class="kb-hint" style="margin-bottom:0;">형식: 성공/시도 (예: 6/10) · 대상: 전체 15명</span>
       ${tipButtonHtml(cur.key)}
     </div>
     ${tipBoxHtml(cur.key, cur.desc)}
     <div class="kb-table-wrap"><table class="kb-table"><thead><tr>
-      <th>이름</th>${dates.map(d=>`<th>${d}</th>`).join("")}
+      <th>이름(역할)</th>${dates.map(d=>`<th>${d}</th>`).join("")}
     </tr></thead><tbody>
-      ${GIRLS.map(name=>`<tr class="${name===studentName?'kb-me':''}">
-        <td>${name}</td>
+      ${ALL_STUDENTS.map(name=>`<tr class="${name===studentName?'kb-me':''}">
+        <td>${name} <span class="kb-role-tag">(${roleOf(name)})</span></td>
         ${dates.map(d=>{
           const k = K(slidingDrill, d, name);
           const editable = canEdit(name);
@@ -884,7 +944,7 @@ function renderSelfLog(c){
       ${studentLocked
         ? `<span class="kb-chip" style="font-weight:700;">${esc(logStudent)} (${roleOf(logStudent)})</span>`
         : `<select class="kb-select" id="logStudentSel">
-            ${GIRLS.map(g=>`<option value="${g}" ${g===logStudent?"selected":""}>${g} (${roleOf(g)})</option>`).join("")}
+            ${ALL_STUDENTS.map(g=>`<option value="${g}" ${g===logStudent?"selected":""}>${g} (${roleOf(g)})</option>`).join("")}
           </select>`
       }
       <select class="kb-select" id="logDateSel">
@@ -916,9 +976,9 @@ function renderSelfLog(c){
   }
   document.getElementById("logDateSel").onchange = (e)=>{ logDate=e.target.value; renderContent(); };
   c.querySelectorAll("textarea[data-field]").forEach(ta=>{
-    ta.addEventListener("focus", ()=>{ editing = true; });
+    ta.addEventListener("focus", ()=>{ setEditing(true); });
     ta.addEventListener("blur", (e)=>{
-      editing = false;
+      setEditing(false);
       patchSelfLog(logStudent, logDate, e.target.dataset.field, e.target.value);
     });
   });
@@ -943,10 +1003,10 @@ function bindChecks(c){
   });
 }
 function bindTextInputs(c){
-  c.querySelectorAll('input[type="text"][data-sec]').forEach(inp=>{
-    inp.addEventListener("focus", ()=>{ editing = true; });
+  c.querySelectorAll('input[type="text"][data-sec], input[type="number"][data-sec]').forEach(inp=>{
+    inp.addEventListener("focus", ()=>{ setEditing(true); });
     inp.addEventListener("blur", (e)=>{
-      editing = false;
+      setEditing(false);
       patch(e.target.dataset.sec, e.target.dataset.key, e.target.value);
     });
   });
@@ -971,5 +1031,15 @@ if ("serviceWorker" in navigator) {
 }
 
 /* ---------------- init ---------------- */
+/* 화면이 백그라운드로 가거나 폰이 잠기기 직전, 입력 중이던 값을 강제로 저장 */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden"){
+    const active = document.activeElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")){
+      active.blur();
+    }
+  }
+});
+
 render();
 initFirebase();
