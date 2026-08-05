@@ -1,4 +1,4 @@
-const CACHE_NAME = "kinball-checkboard-v2";
+const CACHE_NAME = "kinball-checkboard-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
