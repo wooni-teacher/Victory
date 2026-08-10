@@ -291,6 +291,92 @@ function getInstallHint(){
 }
 
 /* ---------------- coaching-point helper icon ---------------- */
+/* ---------------- 자율 기록지 내보내기 (엑셀 CSV / 이미지) ---------------- */
+function csvEscape(s){
+  const str = String(s ?? "");
+  if (/[",\n]/.test(str)) return '"' + str.replace(/"/g,'""') + '"';
+  return str;
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function exportSelfLogCSV(){
+  const rows = [["이름","역할","날짜","오늘의 목표","잘한 점","아쉬운 점 · 보완할 점","다음 훈련 다짐","코치 확인","코치 피드백"]];
+  ALL_STUDENTS.forEach(name => {
+    ALL_DATES.forEach(date => {
+      const e = data.selflog[K(name, date)];
+      if (!e) return;
+      rows.push([name, roleOf(name), date, e.goal||"", e.good||"", e.improve||"", e.next||"", e.coachCheck?"완료":"", e.coachFeedback||""]);
+    });
+  });
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\r\n");
+  downloadBlob(new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"}), `킨볼_자율기록_전체_${TODAY_KEY.replace("/","-")}.csv`);
+}
+
+function wrapTextChars(ctx, text, maxWidth){
+  const lines = [];
+  let line = "";
+  for (const ch of String(text||"(작성 없음)")){
+    const test = line + ch;
+    if (ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = ch; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function drawFeedbackCard(student, date, entry){
+  const W = 720, PAD = 36, contentW = W - PAD*2, headerH = 110, lineH = 26, labelH = 30, sectionGap = 24;
+  const measureCanvas = document.createElement("canvas");
+  const mctx = measureCanvas.getContext("2d");
+  const sections = [
+    {label:"오늘의 목표", value: entry.goal, color:"#12324f"},
+    {label:"잘한 점", value: entry.good, color:"#1c6b45"},
+    {label:"아쉬운 점 · 보완할 점", value: entry.improve, color:"#8a6a10"},
+    {label:"다음 훈련 다짐", value: entry.next, color:"#12324f"},
+  ];
+  if (entry.coachFeedback) sections.push({label:"💬 코치 피드백", value: entry.coachFeedback, color:"#1c6b45", highlight:true});
+  mctx.font = "16px sans-serif";
+  const measured = sections.map(s => ({...s, lines: wrapTextChars(mctx, s.value, contentW-24)}));
+  let totalH = headerH + 30;
+  measured.forEach(s => { totalH += labelH + s.lines.length*lineH + sectionGap; });
+  totalH += PAD;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = totalH;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#f7f8fa"; ctx.fillRect(0,0,W,totalH);
+  ctx.fillStyle = "#12324f"; ctx.fillRect(0,0,W,headerH);
+  ctx.fillStyle = "#ffffff"; ctx.font = "bold 24px sans-serif";
+  ctx.fillText(`${student} · ${roleOf(student)}`, PAD, 46);
+  ctx.fillStyle = "#c3cddb"; ctx.font = "15px sans-serif";
+  ctx.fillText(`${date} 훈련 기록`, PAD, 76);
+
+  let cy = headerH + 40;
+  measured.forEach(s => {
+    if (s.highlight){
+      ctx.fillStyle = "#eafaf0";
+      ctx.fillRect(PAD-12, cy-22, contentW+24, labelH + s.lines.length*lineH + 4);
+    }
+    ctx.fillStyle = s.color; ctx.font = "bold 15px sans-serif";
+    ctx.fillText(s.label, PAD, cy);
+    cy += labelH;
+    ctx.fillStyle = "#25313d"; ctx.font = "16px sans-serif";
+    s.lines.forEach(line => { ctx.fillText(line, PAD, cy); cy += lineH; });
+    cy += sectionGap;
+  });
+  return canvas;
+}
+function exportFeedbackImage(student, date){
+  const entry = data.selflog[K(student, date)] || {goal:"",good:"",improve:"",next:"",coachFeedback:""};
+  const canvas = drawFeedbackCard(student, date, entry);
+  canvas.toBlob(blob => downloadBlob(blob, `${student}_${date.replace("/","-")}_피드백.png`));
+}
+
 function tipButtonHtml(key){
   return `<button type="button" class="kb-tip-btn" data-tipkey="${esc(key)}" aria-label="코칭 포인트 보기">?</button>`;
 }
@@ -980,12 +1066,23 @@ function renderSelfLog(c){
             ? `<div class="kb-tip-box" style="background:#eafaf0;border-color:#bfe8d1;color:#1c6b45;margin-top:12px;">💬 코치의 한마디: ${esc(entry.coachFeedback)}</div>`
             : `<div class="kb-hint" style="margin-top:12px;">아직 이 날짜에 코치 피드백이 없어요.</div>`)
       }
+      ${appMode==="coach" ? `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #eef0f2;">
+        <button type="button" class="kb-gate-btn" id="exportImageBtn" style="width:auto;background:#2e7d52;padding:8px 14px;font-size:12.5px;">🖼️ 이 기록 이미지로 저장</button>
+        <button type="button" class="kb-gate-btn" id="exportCsvBtn" style="width:auto;background:var(--navy);padding:8px 14px;font-size:12.5px;">📊 전체 기록 엑셀로 내보내기</button>
+      </div>` : ""}
     </div>
   `;
   if (!studentLocked){
     document.getElementById("logStudentSel").onchange = (e)=>{ logStudent=e.target.value; renderContent(); };
   }
   document.getElementById("logDateSel").onchange = (e)=>{ logDate=e.target.value; renderContent(); };
+  if (appMode === "coach"){
+    const imgBtn = document.getElementById("exportImageBtn");
+    if (imgBtn) imgBtn.onclick = () => exportFeedbackImage(logStudent, logDate);
+    const csvBtn = document.getElementById("exportCsvBtn");
+    if (csvBtn) csvBtn.onclick = () => exportSelfLogCSV();
+  }
   c.querySelectorAll("textarea[data-field]").forEach(ta=>{
     let debounceTimer = null;
     ta.addEventListener("focus", ()=>{ setEditing(true); });
