@@ -175,8 +175,9 @@ function initFirebase(){
 
 /* 값 하나가 바뀔 때 전체 데이터를 통째로 다시 쓰지 않고,
    바뀐 경로(path)만 정확히 수정합니다 — 여러 학생이 동시에 저장해도
-   서로 다른 항목이면 절대 서로를 덮어쓰지 않습니다. */
-async function persistPath(path, value){
+   서로 다른 항목이면 절대 서로를 덮어쓰지 않습니다.
+   네트워크가 순간적으로 끊겨도 한 번 더 자동 재시도합니다. */
+async function persistPath(path, value, attempt=1){
   if (!dataRef){
     firebaseErrorMsg = "Firebase Realtime Database에 연결되지 않아 저장되지 않았습니다. 페이지를 새로고침하거나 관리자(코치)에게 알려주세요.";
     render();
@@ -186,17 +187,21 @@ async function persistPath(path, value){
   try{
     await set(child(dataRef, path), value);
     firebaseErrorMsg = "";
-  }catch(e){
-    console.error("저장 실패", e);
-    firebaseErrorMsg = "저장에 실패했습니다: " + e.message;
-    render();
-  }finally{
     saving = false; updateStatus();
+  }catch(e){
+    if (attempt < 3){
+      setTimeout(()=>persistPath(path, value, attempt+1), 1500);
+      return;
+    }
+    console.error("저장 실패", e);
+    saving = false;
+    firebaseErrorMsg = "저장에 실패했습니다(네트워크 확인 필요): " + e.message;
+    render();
   }
 }
 
 /* 여러 경로를 한 번에 원자적으로 수정할 때 사용 (예: 팀 전체 초기화) */
-async function persistMultiPath(relativeUpdates){
+async function persistMultiPath(relativeUpdates, attempt=1){
   if (!dataRef){
     firebaseErrorMsg = "Firebase Realtime Database에 연결되지 않아 저장되지 않았습니다. 페이지를 새로고침하거나 관리자(코치)에게 알려주세요.";
     render();
@@ -206,12 +211,16 @@ async function persistMultiPath(relativeUpdates){
   try{
     await update(dataRef, relativeUpdates);
     firebaseErrorMsg = "";
-  }catch(e){
-    console.error("저장 실패", e);
-    firebaseErrorMsg = "저장에 실패했습니다: " + e.message;
-    render();
-  }finally{
     saving = false; updateStatus();
+  }catch(e){
+    if (attempt < 3){
+      setTimeout(()=>persistMultiPath(relativeUpdates, attempt+1), 1500);
+      return;
+    }
+    console.error("저장 실패", e);
+    saving = false;
+    firebaseErrorMsg = "저장에 실패했습니다(네트워크 확인 필요): " + e.message;
+    render();
   }
 }
 
@@ -255,7 +264,9 @@ const ROLE_COLOR = {
 
 function updateStatus(){
   const el = document.getElementById("kbStatus");
-  if (el) el.innerHTML = saving ? '<span>⏳ 저장 중</span>' : '<span>✅ 저장됨 (실시간 동기화)</span>';
+  if (el) el.innerHTML = saving
+    ? '<span style="color:#ffe08a;font-weight:700;">⏳ 저장 중... 잠시만 기다려주세요</span>'
+    : '<span>✅ 저장됨 (실시간 동기화)</span>';
 }
 
 function canEdit(name){
@@ -976,8 +987,16 @@ function renderSelfLog(c){
   }
   document.getElementById("logDateSel").onchange = (e)=>{ logDate=e.target.value; renderContent(); };
   c.querySelectorAll("textarea[data-field]").forEach(ta=>{
+    let debounceTimer = null;
     ta.addEventListener("focus", ()=>{ setEditing(true); });
+    ta.addEventListener("input", (e)=>{
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const field = e.target.dataset.field, val = e.target.value;
+      const student = logStudent, date = logDate;
+      debounceTimer = setTimeout(()=>{ patchSelfLog(student, date, field, val); }, 1200);
+    });
     ta.addEventListener("blur", (e)=>{
+      if (debounceTimer){ clearTimeout(debounceTimer); debounceTimer = null; }
       setEditing(false);
       patchSelfLog(logStudent, logDate, e.target.dataset.field, e.target.value);
     });
@@ -1004,8 +1023,15 @@ function bindChecks(c){
 }
 function bindTextInputs(c){
   c.querySelectorAll('input[type="text"][data-sec], input[type="number"][data-sec]').forEach(inp=>{
+    let debounceTimer = null;
     inp.addEventListener("focus", ()=>{ setEditing(true); });
+    inp.addEventListener("input", (e)=>{
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const sec = e.target.dataset.sec, key = e.target.dataset.key, val = e.target.value;
+      debounceTimer = setTimeout(()=>{ patch(sec, key, val); }, 1200);
+    });
     inp.addEventListener("blur", (e)=>{
+      if (debounceTimer){ clearTimeout(debounceTimer); debounceTimer = null; }
       setEditing(false);
       patch(e.target.dataset.sec, e.target.dataset.key, e.target.value);
     });
