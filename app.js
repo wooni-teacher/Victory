@@ -70,10 +70,7 @@ const FITNESS_DRILLS = [
   {key:"sidestep", section:"fitness", label:"사이드스텝", unit:"콘 왕복 5회", tip:"콘을 일정 간격으로 깔아두고, 무릎을 살짝 굽힌 채 발이 교차되지 않게 옆으로 짧게 끊어 이동하며 왕복하세요. 신호에 반응해 방향을 바꾸는 연습도 함께 하면 좋아요."},
   {key:"sprint", section:"fitness", label:"반응 스프린트", unit:"왕복 5회", tip:"엎드린 상태에서 신호에 맞춰 빠르게 일어나 몸을 낮추고 무게중심을 앞에 둔 채 출발하세요. 첫 3걸음을 최대한 빠르게 내딛는 게 핵심이에요."},
   {key:"shuttle", section:"fitness", label:"셔틀런", unit:"회 / 20m 왕복 5회", tip:"왕복 지점에서 방향을 바꿀 때 속도가 줄지 않도록, 마지막 한 걸음을 크게 디디며 몸을 돌리세요."},
-  {key:"dropstep", section:"fitness", label:"드롭스텝", unit:"회 / 10회 반복", tip:"공이 뒤로 넘어갈 때는 뒤돌아 걷지 말고, 축발을 돌려 몸 전체를 돌린 뒤 공 방향으로 전력 질주하세요."},
-  {key:"bounce", section:"sliding", label:"공 튕겨서 슬라이딩", unit:"성공/시도 (예: 6/10)", tip:"거리별로 공을 튀긴 후, 슬라이딩으로 리시브에 성공했는지 측정합니다."},
-  {key:"side", section:"sliding", label:"양 옆 슬라이딩", unit:"성공/시도 (예: 6/10)", tip:"일정 거리에서 대각으로 날아오는 공을 슬라이딩으로 받아내는 성공 여부를 측정합니다."},
-  {key:"pair", section:"sliding", label:"2인 1조 슬라이딩", unit:"성공/시도 (예: 6/10)", tip:"한 명은 커버, 한 명은 슬라이더 역할을 정합니다. 슬라이더가 공을 위로 띄우면 다른 한 명이 슬라이딩으로 받아냅니다."},
+  {key:"sliding", section:"sliding", label:"슬라이딩", unit:"성공/시도 (예: 6/10)", tip:"드롭스텝(방향전환 후 공 방향으로 전력 질주), 공 튕겨서 받기, 양 옆 슬라이딩, 2인 1조 훈련 등 다양한 슬라이딩 드릴을 종합해서 기록하세요."},
 ];
 
 /* 도대회 디데이 — 어느 탭에서도 항상 헤더에 표시 */
@@ -465,12 +462,12 @@ function render(){
         <div>
           <div class="kb-dots">
             <span style="background:var(--rose)"></span><span style="background:var(--slate)"></span><span style="background:var(--sky)"></span>
-            <span class="kb-dday">🏆 도대회 ${esc(getDDayLabel())} <span style="opacity:.75;font-weight:400;">(9/8)</span></span>
           </div>
           <div class="kb-title">킨볼 집중훈련 실시간 체크보드</div>
           <div class="kb-sub">1차 7/15~7/24 · 2차 8/4~8/14 · 히터(로즈) · 수비(그레이) · 콜러(스카이)</div>
         </div>
         <div class="kb-status" id="kbStatusWrap">
+          <span class="kb-dday">🏆 도대회 ${esc(getDDayLabel())} <span style="opacity:.75;font-weight:400;">(9/8)</span></span>
           ${badge}
           <span id="kbStatus">✅ 저장됨 (실시간 동기화)</span>
           <button class="kb-btn-refresh" id="kbInstallBtn">📲 앱 설치</button>
