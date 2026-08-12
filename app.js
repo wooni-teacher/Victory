@@ -109,6 +109,8 @@ function emptyData(){
 /* ---------------- state ---------------- */
 let data = emptyData();
 let appMode = "gate";       // 'gate' | 'coach' | 'student'
+let showSplash = true;      // 시작 이미지 화면을 먼저 보여줄지 여부
+let splashStage = 1;        // 1: 터치 안내 이미지, 2: 시작하기 이미지
 let gateView = "select";    // 'select' | 'coachLogin' | 'studentSelect'
 let gateError = "";
 let studentName = null;
@@ -450,6 +452,7 @@ function renderSetupNeeded(){
 /* ---------------- top-level render ---------------- */
 function render(){
   if (CONFIG_IS_PLACEHOLDER) return renderSetupNeeded();
+  if (showSplash) return renderSplash();
   if (appMode === "gate") return renderGate();
 
   const badge = appMode==="coach"
@@ -503,6 +506,25 @@ function render(){
 }
 
 /* ---------------- Gate (login / role select) ---------------- */
+/* ---------------- Splash (시작 이미지 화면, 2단계) ---------------- */
+const SPLASH_IMAGE_1 = "./images/splash1.png"; // 화면을 터치하세요!
+const SPLASH_IMAGE_2 = "./images/splash2.png"; // 킨볼 훈련 · 시작하기
+function renderSplash(){
+  const imgPath = splashStage === 1 ? SPLASH_IMAGE_1 : SPLASH_IMAGE_2;
+  root.innerHTML = `
+    <div class="kb-splash" id="kbSplash">
+      <img src="${imgPath}" alt="킨볼 훈련 시작 화면" id="kbSplashImg">
+    </div>
+  `;
+  const enter = () => {
+    if (splashStage === 1){ splashStage = 2; render(); }
+    else { showSplash = false; render(); }
+  };
+  document.getElementById("kbSplash").onclick = enter;
+  const img = document.getElementById("kbSplashImg");
+  img.onerror = () => { showSplash = false; render(); }; // 이미지가 없으면 스플래시를 건너뛰고 바로 앱으로 진입
+}
+
 function renderGate(){
   let inner = "";
   if (gateView === "select"){
