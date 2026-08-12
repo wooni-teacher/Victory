@@ -67,18 +67,29 @@ const SKILL_ITEMS = {
 };
 
 const FITNESS_DRILLS = [
-  {key:"sidestep", label:"사이드스텝", unit:"콘 왕복 5회", tip:"콘을 일정 간격으로 깔아두고, 무릎을 살짝 굽힌 채 발이 교차되지 않게 옆으로 짧게 끊어 이동하며 왕복하세요. 신호에 반응해 방향을 바꾸는 연습도 함께 하면 좋아요."},
-  {key:"sprint", label:"반응 스프린트", unit:"왕복 5회", tip:"엎드린 상태에서 신호에 맞춰 빠르게 일어나 몸을 낮추고 무게중심을 앞에 둔 채 출발하세요. 첫 3걸음을 최대한 빠르게 내딛는 게 핵심이에요."},
-  {key:"shuttle", label:"셔틀런", unit:"회 / 20m 왕복 5회", tip:"왕복 지점에서 방향을 바꿀 때 속도가 줄지 않도록, 마지막 한 걸음을 크게 디디며 몸을 돌리세요."},
-  {key:"dropstep", label:"드롭스텝", unit:"회 / 10회 반복", tip:"공이 뒤로 넘어갈 때는 뒤돌아 걷지 말고, 축발을 돌려 몸 전체를 돌린 뒤 공 방향으로 전력 질주하세요."},
+  {key:"sidestep", section:"fitness", label:"사이드스텝", unit:"콘 왕복 5회", tip:"콘을 일정 간격으로 깔아두고, 무릎을 살짝 굽힌 채 발이 교차되지 않게 옆으로 짧게 끊어 이동하며 왕복하세요. 신호에 반응해 방향을 바꾸는 연습도 함께 하면 좋아요."},
+  {key:"sprint", section:"fitness", label:"반응 스프린트", unit:"왕복 5회", tip:"엎드린 상태에서 신호에 맞춰 빠르게 일어나 몸을 낮추고 무게중심을 앞에 둔 채 출발하세요. 첫 3걸음을 최대한 빠르게 내딛는 게 핵심이에요."},
+  {key:"shuttle", section:"fitness", label:"셔틀런", unit:"회 / 20m 왕복 5회", tip:"왕복 지점에서 방향을 바꿀 때 속도가 줄지 않도록, 마지막 한 걸음을 크게 디디며 몸을 돌리세요."},
+  {key:"dropstep", section:"fitness", label:"드롭스텝", unit:"회 / 10회 반복", tip:"공이 뒤로 넘어갈 때는 뒤돌아 걷지 말고, 축발을 돌려 몸 전체를 돌린 뒤 공 방향으로 전력 질주하세요."},
+  {key:"bounce", section:"sliding", label:"공 튕겨서 슬라이딩", unit:"성공/시도 (예: 6/10)", tip:"거리별로 공을 튀긴 후, 슬라이딩으로 리시브에 성공했는지 측정합니다."},
+  {key:"side", section:"sliding", label:"양 옆 슬라이딩", unit:"성공/시도 (예: 6/10)", tip:"일정 거리에서 대각으로 날아오는 공을 슬라이딩으로 받아내는 성공 여부를 측정합니다."},
+  {key:"pair", section:"sliding", label:"2인 1조 슬라이딩", unit:"성공/시도 (예: 6/10)", tip:"한 명은 커버, 한 명은 슬라이더 역할을 정합니다. 슬라이더가 공을 위로 띄우면 다른 한 명이 슬라이딩으로 받아냅니다."},
 ];
 
-/* 슬라이딩 훈련 3종 — 각 종목별로 성공/시도를 따로 기록 */
-const SLIDING_DRILLS = [
-  {key:"bounce", label:"공 튕겨서 슬라이딩", desc:"거리별로 공을 튀긴 후, 슬라이딩으로 리시브에 성공했는지 측정합니다."},
-  {key:"side", label:"양 옆 슬라이딩", desc:"일정 거리에서 대각으로 날아오는 공을 슬라이딩으로 받아내는 성공 여부를 측정합니다."},
-  {key:"pair", label:"2인 1조 슬라이딩", desc:"한 명은 커버, 한 명은 슬라이더 역할을 정합니다. 슬라이더가 공을 위로 띄우면 다른 한 명이 슬라이딩으로 받아냅니다."},
-];
+/* 도대회 디데이 — 어느 탭에서도 항상 헤더에 표시 */
+const COMPETITION_DATE = new Date(2026, 8, 8); // 9월 8일 (월은 0부터 시작하므로 8=9월)
+function getDDayLabel(){
+  const now = new Date();
+  const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((COMPETITION_DATE - today0) / (1000*60*60*24));
+  if (diffDays > 0) return `D-${diffDays}`;
+  if (diffDays === 0) return "D-DAY";
+  return `D+${Math.abs(diffDays)}`;
+}
+
+/* 게임 기록 대상 5명 — 히터 3명(히팅+슬라이딩), 콜러 2명(슬라이딩만) */
+const GAME_TRACK_STUDENTS = ["이재희","심규원","이지은","조현영","이나경"];
+const GAME_TRACK_MODE = { "이재희":"both", "심규원":"both", "이지은":"both", "조현영":"slide", "이나경":"slide" };
 
 /* 오늘 날짜를 "7/21" 형식으로 반환 — 학생 모드에서 당일 항목만 체크 가능하도록 사용 */
 function getTodayKey(){
@@ -95,7 +106,7 @@ function K(...parts){
 }
 
 function emptyData(){
-  return { attendance:{}, skills:{}, fitness:{}, sliding:{}, selflog:{}, teams:{...DEFAULT_TEAMS}, scoreboard:{}, updatedAt:null };
+  return { attendance:{}, skills:{}, fitness:{}, sliding:{}, selflog:{}, teams:{...DEFAULT_TEAMS}, scoreboard:{}, gamerecord:{}, updatedAt:null };
 }
 
 /* ---------------- state ---------------- */
@@ -107,10 +118,10 @@ let studentName = null;
 let tab = "home";
 let phaseAttendance = 1;
 let phaseFitness = 1;
-let phaseSliding = 1;
-let slidingDrill = "bounce";
 let openRole = "히터";
 let fitnessDrill = "sidestep";
+let homeChartDrill = "sidestep";
+let gameRecordDate = TODAY_IS_TRAINING_DAY ? TODAY_KEY : ALL_DATES[0];
 let logStudent = GIRLS[0];
 let logDate = ALL_DATES[0];
 let scoreboardDate = TODAY_IS_TRAINING_DAY ? TODAY_KEY : ALL_DATES[0];
@@ -454,6 +465,7 @@ function render(){
         <div>
           <div class="kb-dots">
             <span style="background:var(--rose)"></span><span style="background:var(--slate)"></span><span style="background:var(--sky)"></span>
+            <span class="kb-dday">🏆 도대회 ${esc(getDDayLabel())} <span style="opacity:.75;font-weight:400;">(9/8)</span></span>
           </div>
           <div class="kb-title">킨볼 집중훈련 실시간 체크보드</div>
           <div class="kb-sub">1차 7/15~7/24 · 2차 8/4~8/14 · 히터(로즈) · 수비(그레이) · 콜러(스카이)</div>
@@ -592,9 +604,11 @@ function renderTabs(){
     {id:"teams", label:"팀 편성"},
     {id:"scoreboard", label:"스코어보드"},
     {id:"fitness", label:"기초체력"},
-    {id:"sliding", label:"슬라이딩"},
     {id:"selflog", label:"자율 기록"},
   ];
+  if (appMode === "coach" || (appMode === "student" && GAME_TRACK_STUDENTS.includes(studentName))){
+    TABS.push({id:"gamerecord", label:"게임 기록"});
+  }
   if (appMode === "coach"){
     TABS.push({id:"curriculum", label:"수업 커리큘럼"});
   }
@@ -614,10 +628,10 @@ function renderContent(){
   if (tab==="attendance") return renderAttendance(c);
   if (tab==="skills") return renderSkills(c);
   if (tab==="fitness") return renderFitness(c);
-  if (tab==="sliding") return renderSliding(c);
   if (tab==="selflog") return renderSelfLog(c);
   if (tab==="teams") return renderTeams(c);
   if (tab==="scoreboard") return renderScoreboard(c);
+  if (tab==="gamerecord") return renderGameRecord(c);
   if (tab==="curriculum") return renderCurriculum(c);
 }
 
@@ -733,6 +747,98 @@ function renderScoreboard(c){
   }
 }
 
+/* ---------------- Game Record (게임 기록) ---------------- */
+function gameRate(name, date, prefix){
+  const att = Number(data.gamerecord[K(date, name, prefix+"Att")] || 0);
+  const suc = Number(data.gamerecord[K(date, name, prefix+"Suc")] || 0);
+  return att > 0 ? Math.round(suc/att*100) : null;
+}
+function gameRateCumulative(name, prefix){
+  let att = 0, suc = 0;
+  ALL_DATES.forEach(d => {
+    att += Number(data.gamerecord[K(d, name, prefix+"Att")] || 0);
+    suc += Number(data.gamerecord[K(d, name, prefix+"Suc")] || 0);
+  });
+  return att > 0 ? Math.round(suc/att*100) : null;
+}
+function rateBadge(rate, label){
+  const color = rate===null ? "var(--muted)" : (rate>=70 ? "#1c6b45" : rate>=40 ? "#8a6a10" : "#991b1b");
+  const bg = rate===null ? "#f1f1f1" : (rate>=70 ? "#eafaf0" : rate>=40 ? "#fff8e6" : "#fee2e2");
+  return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:${bg};color:${color};font-size:12px;font-weight:700;">${label} ${rate===null?"-":rate+"%"}</div>`;
+}
+
+function renderGameRecord(c){
+  if (appMode !== "coach") return renderGameRecordStudent(c);
+  c.innerHTML = `<div class="kb-note" style="margin-bottom:14px;"><b>게임 기록 안내</b><br>날짜를 고른 뒤 히팅·슬라이딩 시도/성공 횟수를 입력하면 성공률이 자동 계산됩니다. 여기 기록된 5명의 성공률은 홈 화면에도 요약되어 보여요.</div>
+    <div style="margin-bottom:14px;">
+      <select class="kb-select" id="gameRecDateSel">
+        ${ALL_DATES.map(d=>`<option value="${d}" ${d===gameRecordDate?"selected":""}>${d}</option>`).join("")}
+      </select>
+    </div>
+    ${GAME_TRACK_STUDENTS.map(name=>{
+      const mode = GAME_TRACK_MODE[name];
+      const hitRate = mode==="both" ? gameRate(name, gameRecordDate, "hit") : null;
+      const slRate = gameRate(name, gameRecordDate, "sl");
+      return `<div class="kb-today-card">
+        <div class="kb-today-drill-row" style="margin-bottom:10px;">
+          <span class="kb-today-drill-label">${name} <span class="kb-role-tag">(${roleOf(name)})</span></span>
+        </div>
+        ${mode==="both" ? `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;">히팅 ${rateBadge(hitRate,"성공률")}</div>
+          <div style="display:flex;gap:10px;">
+            <input type="number" min="0" class="kb-input-lg" style="margin-top:0;" placeholder="시도" data-sec="gamerecord" data-key="${esc(K(gameRecordDate,name,"hitAtt"))}" value="${esc(data.gamerecord[K(gameRecordDate,name,"hitAtt")]||"")}">
+            <input type="number" min="0" class="kb-input-lg" style="margin-top:0;" placeholder="성공" data-sec="gamerecord" data-key="${esc(K(gameRecordDate,name,"hitSuc"))}" value="${esc(data.gamerecord[K(gameRecordDate,name,"hitSuc")]||"")}">
+          </div>
+        </div>` : ""}
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;">슬라이딩 ${rateBadge(slRate,"성공률")}</div>
+          <div style="display:flex;gap:10px;">
+            <input type="number" min="0" class="kb-input-lg" style="margin-top:0;" placeholder="시도" data-sec="gamerecord" data-key="${esc(K(gameRecordDate,name,"slAtt"))}" value="${esc(data.gamerecord[K(gameRecordDate,name,"slAtt")]||"")}">
+            <input type="number" min="0" class="kb-input-lg" style="margin-top:0;" placeholder="성공" data-sec="gamerecord" data-key="${esc(K(gameRecordDate,name,"slSuc"))}" value="${esc(data.gamerecord[K(gameRecordDate,name,"slSuc")]||"")}">
+          </div>
+        </div>
+      </div>`;
+    }).join("")}`;
+  document.getElementById("gameRecDateSel").onchange = (e)=>{ gameRecordDate = e.target.value; renderContent(); };
+  c.querySelectorAll('input[data-sec="gamerecord"]').forEach(inp=>{
+    inp.addEventListener("focus", ()=>{ setEditing(true); });
+    inp.addEventListener("blur", (e)=>{
+      setEditing(false);
+      patch("gamerecord", e.target.dataset.key, e.target.value);
+      renderContent();
+    });
+  });
+}
+
+function renderGameRecordStudent(c){
+  const mode = GAME_TRACK_MODE[studentName];
+  if (!mode){
+    c.innerHTML = `<div class="kb-note">이 학생은 게임 기록 대상이 아니에요.</div>`;
+    return;
+  }
+  const hitCum = mode==="both" ? gameRateCumulative(studentName, "hit") : null;
+  const slCum = gameRateCumulative(studentName, "sl");
+  c.innerHTML = `<div class="kb-today-card">
+      <div class="kb-today-date">누적 성공률</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${mode==="both" ? rateBadge(hitCum, "히팅") : ""}
+        ${rateBadge(slCum, "슬라이딩")}
+      </div>
+    </div>` +
+    `<div class="kb-hint" style="margin:14px 0 8px;">날짜별 기록</div>` +
+    `<div class="kb-table-wrap"><table class="kb-table"><thead><tr>
+      <th>날짜</th>${mode==="both" ? "<th>히팅</th>" : ""}<th>슬라이딩</th>
+    </tr></thead><tbody>
+      ${ALL_DATES.filter(d => (mode==="both" && (data.gamerecord[K(d,studentName,"hitAtt")]||data.gamerecord[K(d,studentName,"hitSuc")])) || data.gamerecord[K(d,studentName,"slAtt")] || data.gamerecord[K(d,studentName,"slSuc")])
+        .map(d => `<tr>
+          <td>${d}</td>
+          ${mode==="both" ? `<td>${data.gamerecord[K(d,studentName,"hitSuc")]||0}/${data.gamerecord[K(d,studentName,"hitAtt")]||0} (${gameRate(studentName,d,"hit")===null?"-":gameRate(studentName,d,"hit")+"%"})</td>` : ""}
+          <td>${data.gamerecord[K(d,studentName,"slSuc")]||0}/${data.gamerecord[K(d,studentName,"slAtt")]||0} (${gameRate(studentName,d,"sl")===null?"-":gameRate(studentName,d,"sl")+"%"})</td>
+        </tr>`).join("") || `<tr><td colspan="${mode==="both"?3:2}" style="text-align:center;color:var(--muted);">아직 기록이 없어요</td></tr>`}
+    </tbody></table></div>`;
+}
+
 /* ---------------- Curriculum (coach only) ---------------- */
 function renderCurriculum(c){
   if (appMode !== "coach"){ tab = "home"; return renderHome(c); }
@@ -759,6 +865,64 @@ function renderCurriculum(c){
 }
 
 /* ---------------- Home ---------------- */
+function getFitnessPoints(name, drill){
+  const pts = [];
+  ALL_DATES.forEach(date=>{
+    const k = K(drill.key, date, name);
+    const raw = data[drill.section][k];
+    if (raw === undefined || raw === null || raw === "") return;
+    let val;
+    const m = String(raw).match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (m){
+      const suc=Number(m[1]), att=Number(m[2]);
+      val = att>0 ? Math.round(suc/att*100) : 0;
+    } else {
+      val = parseFloat(raw);
+      if (isNaN(val)) return;
+    }
+    pts.push({date, value: val});
+  });
+  return pts;
+}
+function buildBarChartSVG(points){
+  if (!points.length) return `<div class="kb-note">아직 기록된 데이터가 없어요.</div>`;
+  const w = 320, h = 170, padL=28, padB=26, padT=18, padR=10;
+  const maxVal = Math.max(...points.map(p=>p.value), 1);
+  const plotW = w-padL-padR;
+  const gap = plotW/points.length;
+  const barW = Math.min(28, gap*0.6);
+  const bars = points.map((p,i)=>{
+    const barH = (p.value/maxVal) * (h-padT-padB);
+    const x = padL + i*gap + (gap-barW)/2;
+    const y = h-padB-barH;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(barH,1).toFixed(1)}" fill="#3b9fd8" rx="3"/>
+      <text x="${(x+barW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9" text-anchor="middle" fill="#12324f">${esc(p.value)}</text>
+      <text x="${(x+barW/2).toFixed(1)}" y="${h-padB+13}" font-size="8" text-anchor="middle" fill="#8a96a3">${esc(p.date)}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;max-width:360px;display:block;margin:0 auto;">
+    <line x1="${padL}" y1="${h-padB}" x2="${w-padR}" y2="${h-padB}" stroke="#e2e6ea"/>
+    ${bars}
+  </svg>`;
+}
+function gameRateSummaryCard(){
+  const rows = GAME_TRACK_STUDENTS.map(name=>{
+    const mode = GAME_TRACK_MODE[name];
+    const hitCum = mode==="both" ? gameRateCumulative(name,"hit") : null;
+    const slCum = gameRateCumulative(name,"sl");
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f1f2;">
+      <span style="font-weight:700;font-size:13px;">${esc(name)}</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+        ${mode==="both" ? rateBadge(hitCum,"히팅") : ""}
+        ${rateBadge(slCum,"슬라이딩")}
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="kb-today-card">
+    <div class="kb-today-date">🎯 게임 성공률 (누적)</div>
+    ${rows}
+  </div>`;
+}
+
 function renderHome(c){
   function card(title,color,members,desc){
     const cc = ROLE_COLOR[color];
@@ -768,14 +932,11 @@ function renderHome(c){
     </div>`;
   }
   let note = `모든 체크·기록은 저장 즉시 Firebase에 실시간으로 반영됩니다. 다른 기기에서도 새로고침 없이 바로 보여요.`;
-  if (appMode==="student") note = `현재 <b>학생 모드(${esc(studentName)})</b>로 접속 중입니다. 출석·기초체력·슬라이딩은 <b>오늘(${esc(TODAY_KEY)}) 항목만</b> 체크·입력할 수 있고, <b>기술 체크</b>는 본인 항목만 1~5점으로 스스로 평가해 적을 수 있어요. <b>자율 기록지</b>는 원하는 날짜를 골라 자유롭게 작성할 수 있습니다. 다른 학생의 기록이나 지난 날짜 기록은 코치 모드에서만 수정 가능합니다.`;
+  if (appMode==="student") note = `현재 <b>학생 모드(${esc(studentName)})</b>로 접속 중입니다. 출석·기초체력은 <b>오늘(${esc(TODAY_KEY)}) 항목만</b> 체크·입력할 수 있고, <b>기술 체크</b>는 본인 항목만 1~5점으로 스스로 평가해 적을 수 있어요. <b>자율 기록지</b>는 원하는 날짜를 골라 자유롭게 작성할 수 있습니다. 다른 학생의 기록이나 지난 날짜 기록은 코치 모드에서만 수정 가능합니다.`;
 
-  const rulesCard = `<div class="kb-today-card" style="background:#fff8e6;border-color:#f2dfa0;">
-    <div class="kb-today-date" style="color:#8a6a10;">🏐 킨볼 수칙</div>
-    <div style="font-size:14.5px;line-height:1.9;color:#5c4700;">
-      <div>① 남 탓하지 않는다</div>
-      <div>② 스스로를 점검한다</div>
-    </div>
+  const rulesCard = `<div class="kb-today-card" style="background:#fff8e6;border-color:#f2dfa0;padding:10px 14px;margin-bottom:12px;">
+    <span style="font-size:12.5px;font-weight:700;color:#8a6a10;">🏐 킨볼 수칙</span>
+    <span style="font-size:12.5px;color:#5c4700;margin-left:8px;">① 남 탓하지 않는다 · ② 스스로를 점검한다</span>
   </div>`;
 
   let feedbackCard = "";
@@ -789,17 +950,43 @@ function renderHome(c){
     }
   }
 
-  c.innerHTML = feedbackCard + rulesCard + `
-    <div class="kb-cards">
-      ${card("히터 (공격)","rose",HITTERS,"3인 동시 히팅 콤비네이션")}
-      ${card("수비 (슬라이딩)","slate",GIRLS,"여학생 전원 · 낙하지점 판단·리시브")}
-      ${card("콜러 (콜링·리더)","sky",CALLERS,"4인 로테이션 · 색상/타이밍 콜")}
-    </div>
-    <div class="kb-card" style="margin-bottom:12px;">
-      <h3 style="color:var(--navy)">훈련 보조 (남학생 7명)</h3>
-      <div>${BOYS.map(b=>`<span class="kb-chip" style="${b===studentName?'font-weight:700;border-color:var(--navy);':''}">${b}</span>`).join("")}</div>
-    </div>
-    <div class="kb-note"><b>사용 안내</b><br>${note}</div>`;
+  const gameSummary = gameRateSummaryCard();
+
+  let bodyHtml;
+  if (appMode === "student"){
+    const chartDrill = FITNESS_DRILLS.find(d=>d.key===homeChartDrill) || FITNESS_DRILLS[0];
+    bodyHtml = `<div class="kb-today-card">
+        <div class="kb-today-date">📈 내 기초체력 기록</div>
+        <div class="kb-switch" id="homeChartSwitch" style="flex-wrap:wrap;">
+          ${FITNESS_DRILLS.map(d=>`<button data-d="${d.key}" class="${homeChartDrill===d.key?'active':''}">${d.label}</button>`).join("")}
+        </div>
+        ${buildBarChartSVG(getFitnessPoints(studentName, chartDrill))}
+      </div>
+      <div class="kb-note"><b>사용 안내</b><br>${note}</div>`;
+  } else {
+    bodyHtml = `
+      <div class="kb-cards">
+        ${card("히터 (공격)","rose",HITTERS,"3인 동시 히팅 콤비네이션")}
+        ${card("수비 (슬라이딩)","slate",GIRLS,"여학생 전원 · 낙하지점 판단·리시브")}
+        ${card("콜러 (콜링·리더)","sky",CALLERS,"4인 로테이션 · 색상/타이밍 콜")}
+      </div>
+      <div class="kb-card" style="margin-bottom:12px;">
+        <h3 style="color:var(--navy)">훈련 보조 (남학생 7명)</h3>
+        <div>${BOYS.map(b=>`<span class="kb-chip">${b}</span>`).join("")}</div>
+      </div>
+      <div class="kb-note"><b>사용 안내</b><br>${note}</div>`;
+  }
+
+  c.innerHTML = feedbackCard + rulesCard + gameSummary + bodyHtml;
+
+  if (appMode === "student"){
+    const chartSwitchEl = document.getElementById("homeChartSwitch");
+    if (chartSwitchEl){
+      chartSwitchEl.querySelectorAll("button").forEach(btn=>{
+        btn.onclick = ()=>{ homeChartDrill = btn.dataset.d; renderContent(); };
+      });
+    }
+  }
 }
 
 /* ---------------- Phase switch helper ---------------- */
@@ -932,9 +1119,10 @@ function renderFitness(c){
       ${ALL_STUDENTS.map(name=>`<tr class="${name===studentName?'kb-me':''}">
         <td>${name} <span class="kb-role-tag">(${roleOf(name)})</span></td>
         ${dates.map(d=>{
-          const k = K(fitnessDrill, d, name);
+          const k = K(cur.key, d, name);
           const editable = canEdit(name);
-          return `<td><input type="text" class="kb-input" data-sec="fitness" data-key="${esc(k)}" value="${esc(data.fitness[k]||"")}" placeholder="기록" ${editable?"":"disabled"}></td>`;
+          const val = data[cur.section][k] || "";
+          return `<td><input type="text" class="kb-input" data-sec="${cur.section}" data-key="${esc(k)}" value="${esc(val)}" placeholder="기록" ${editable?"":"disabled"}></td>`;
         }).join("")}
       </tr>`).join("")}
     </tbody></table></div>`;
@@ -954,70 +1142,14 @@ function renderFitnessStudent(c){
   c.innerHTML = `<div class="kb-today-date" style="margin-bottom:10px;">오늘 · ${esc(TODAY_KEY)} 기초체력 기록</div>` +
     FITNESS_DRILLS.map(d=>{
       const k = K(d.key, TODAY_KEY, studentName);
+      const val = data[d.section][k] || "";
       return `<div class="kb-today-card">
         <div class="kb-today-drill-row">
           <span class="kb-today-drill-label">${d.label} <span class="kb-role-tag">(${d.unit})</span></span>
           ${tipButtonHtml(d.key)}
         </div>
         ${tipBoxHtml(d.key, d.tip)}
-        <input type="text" class="kb-input-lg" data-sec="fitness" data-key="${esc(k)}" value="${esc(data.fitness[k]||"")}" placeholder="기록 입력">
-      </div>`;
-    }).join("");
-  bindTextInputs(c);
-  bindTipButtons(c);
-}
-
-/* ---------------- Sliding ---------------- */
-function renderSliding(c){
-  if (appMode === "student") return renderSlidingStudent(c);
-  const cur = SLIDING_DRILLS.find(d=>d.key===slidingDrill);
-  const dates = phaseSliding===1 ? PHASE1_DATES : PHASE2_DATES;
-  c.innerHTML = readOnlyNote() +
-    `<div class="kb-switch" id="slDrillSwitch">
-      ${SLIDING_DRILLS.map(d=>`<button data-d="${d.key}" class="${slidingDrill===d.key?'active':''}">${d.label}</button>`).join("")}
-    </div>` +
-    switchHtml("slSwitch", phaseSliding, ["1차 (7/15~7/24)","2차 (8/4~8/14)"]) +
-    `<div class="kb-hint-row">
-      <span class="kb-hint" style="margin-bottom:0;">형식: 성공/시도 (예: 6/10) · 대상: 전체 15명</span>
-      ${tipButtonHtml(cur.key)}
-    </div>
-    ${tipBoxHtml(cur.key, cur.desc)}
-    <div class="kb-table-wrap"><table class="kb-table"><thead><tr>
-      <th>이름(역할)</th>${dates.map(d=>`<th>${d}</th>`).join("")}
-    </tr></thead><tbody>
-      ${ALL_STUDENTS.map(name=>`<tr class="${name===studentName?'kb-me':''}">
-        <td>${name} <span class="kb-role-tag">(${roleOf(name)})</span></td>
-        ${dates.map(d=>{
-          const k = K(slidingDrill, d, name);
-          const editable = canEdit(name);
-          return `<td><input type="text" class="kb-input" style="width:56px" data-sec="sliding" data-key="${esc(k)}" value="${esc(data.sliding[k]||"")}" placeholder="6/10" ${editable?"":"disabled"}></td>`;
-        }).join("")}
-      </tr>`).join("")}
-    </tbody></table></div>`;
-  c.querySelectorAll("#slDrillSwitch button").forEach(btn=>{
-    btn.onclick = ()=>{ slidingDrill = btn.dataset.d; renderContent(); };
-  });
-  bindSwitch("slSwitch", (p)=>{ phaseSliding=p; renderContent(); });
-  bindTextInputs(c);
-  bindTipButtons(c);
-}
-
-function renderSlidingStudent(c){
-  if (!TODAY_IS_TRAINING_DAY){
-    c.innerHTML = `<div class="kb-note">오늘(${esc(TODAY_KEY)})은 예정된 훈련일이 아니에요. 훈련일에 다시 접속해서 기록해주세요.</div>`;
-    return;
-  }
-  c.innerHTML = `<div class="kb-today-date" style="margin-bottom:6px;">오늘 · ${esc(TODAY_KEY)} 슬라이딩 기록</div>
-    <div class="kb-hint">형식: 성공/시도 (예: 6/10)</div>` +
-    SLIDING_DRILLS.map(d=>{
-      const k = K(d.key, TODAY_KEY, studentName);
-      return `<div class="kb-today-card">
-        <div class="kb-today-drill-row">
-          <span class="kb-today-drill-label">${d.label}</span>
-          ${tipButtonHtml(d.key)}
-        </div>
-        ${tipBoxHtml(d.key, d.desc)}
-        <input type="text" class="kb-input-lg" data-sec="sliding" data-key="${esc(k)}" value="${esc(data.sliding[k]||"")}" placeholder="6/10">
+        <input type="text" class="kb-input-lg" data-sec="${d.section}" data-key="${esc(k)}" value="${esc(val)}" placeholder="기록 입력">
       </div>`;
     }).join("");
   bindTextInputs(c);
