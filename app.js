@@ -507,8 +507,8 @@ function render(){
 
 /* ---------------- Gate (login / role select) ---------------- */
 /* ---------------- Splash (시작 이미지 화면, 2단계) ---------------- */
-const SPLASH_IMAGE_1 = "./images/splash1.png"; // 화면을 터치하세요!
-const SPLASH_IMAGE_2 = "./images/splash2.png"; // 킨볼 훈련 · 시작하기
+const SPLASH_IMAGE_1 = "./splash1.png"; // 화면을 터치하세요!
+const SPLASH_IMAGE_2 = "./splash2.png"; // 킨볼 훈련 · 시작하기
 function renderSplash(){
   const imgPath = splashStage === 1 ? SPLASH_IMAGE_1 : SPLASH_IMAGE_2;
   root.innerHTML = `

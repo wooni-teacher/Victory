@@ -1,4 +1,4 @@
-const CACHE_NAME = "kinball-checkboard-v11";
+const CACHE_NAME = "kinball-checkboard-v12";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,8 +7,8 @@ const APP_SHELL = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-512-maskable.png",
-  "./images/splash1.png",
-  "./images/splash2.png"
+  "./splash1.png",
+  "./splash2.png"
 ];
 
 self.addEventListener("install", (event) => {
